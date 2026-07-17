@@ -29,7 +29,6 @@ import {
   Settings as SettingsIcon,
   Shield,
   HelpCircle,
-  Trash2,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -65,33 +64,6 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBackToDashboard, project
   const [reports, setReports] = useState<any[]>([]);
   const [activeReport, setActiveReport] = useState<any | null>(null);
 
-  // Code runner states
-  const [showConsole, setShowConsole] = useState(false);
-  const [consoleOutput, setConsoleOutput] = useState<{ stdout: string; stderr: string; exitCode: number } | null>(null);
-  const [runLoading, setRunLoading] = useState(false);
-
-  const runCode = async () => {
-    if (!activeFile) return;
-    setShowConsole(true);
-    setConsoleOutput(null);
-    setRunLoading(true);
-    try {
-      const res = await api.post('/analysis/run', {
-        code: activeFile.content,
-        language: activeFile.name.split('.').pop(),
-      });
-      setConsoleOutput(res.data.data);
-    } catch (err: any) {
-      setConsoleOutput({
-        stdout: '',
-        stderr: err.response?.data?.error?.message || 'Failed to execute code.',
-        exitCode: 1,
-      });
-    } finally {
-      setRunLoading(false);
-    }
-  };
-
   // Load project details, files, chats, and analyses
   useEffect(() => {
     const loadWorkspaceData = async () => {
@@ -105,7 +77,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBackToDashboard, project
         setFiles(filesRes.data.data.files);
         setChats(chatsRes.data.data.chats);
         setReports(reportsRes.data.data.analyses);
-
+        
         // Auto-select first chat or create one if none
         if (chatsRes.data.data.chats.length > 0) {
           setActiveChat(chatsRes.data.data.chats[0]);
@@ -218,7 +190,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBackToDashboard, project
 
     const token = localStorage.getItem('token');
     let aiMsgId = `temp-ai-${Date.now()}`;
-
+    
     // Add placeholder AI message
     setChatMessages((prev) => [
       ...prev,
@@ -241,7 +213,6 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBackToDashboard, project
       const decoder = new TextDecoder('utf-8');
       let done = false;
       let accumulatedText = '';
-      let streamError: string | null = null;
 
       while (!done) {
         const { value, done: streamDone } = await reader.read();
@@ -259,10 +230,6 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBackToDashboard, project
                     prev.map((msg) => (msg.id === aiMsgId ? { ...msg, content: accumulatedText } : msg))
                   );
                 }
-                if (parsed.error) {
-                  streamError = parsed.error;
-                  done = true;
-                }
                 if (parsed.done) {
                   done = true;
                 }
@@ -273,15 +240,6 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBackToDashboard, project
           }
         }
       }
-
-      // Surface any error the backend sent through the stream
-      if (streamError) {
-        setChatMessages((prev) =>
-          prev.map((msg) =>
-            msg.id === aiMsgId ? { ...msg, content: `⚠️ ${streamError}` } : msg
-          )
-        );
-      }
     } catch (err: any) {
       console.error('Send message failed', err);
       setChatMessages((prev) =>
@@ -291,17 +249,6 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBackToDashboard, project
       );
     } finally {
       setChatLoading(false);
-    }
-  };
-
-  const handleClearChat = async () => {
-    if (!activeChat) return;
-    if (!window.confirm('Clear all messages in this chat?')) return;
-    try {
-      await api.delete(`/chat/chats/${activeChat.id}/messages`);
-      setChatMessages([]);
-    } catch (err) {
-      console.error('Failed to clear chat', err);
     }
   };
 
@@ -343,7 +290,6 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBackToDashboard, project
       const decoder = new TextDecoder('utf-8');
       let done = false;
       let accumulatedText = '';
-      let streamError: string | null = null;
 
       while (!done) {
         const { value, done: streamDone } = await reader.read();
@@ -361,10 +307,6 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBackToDashboard, project
                     prev.map((msg) => (msg.id === aiMsgId ? { ...msg, content: accumulatedText } : msg))
                   );
                 }
-                if (parsed.error) {
-                  streamError = parsed.error;
-                  done = true;
-                }
                 if (parsed.done) {
                   done = true;
                 }
@@ -374,15 +316,6 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBackToDashboard, project
             }
           }
         }
-      }
-
-      // Surface any error the backend sent through the stream
-      if (streamError) {
-        setChatMessages((prev) =>
-          prev.map((msg) =>
-            msg.id === aiMsgId ? { ...msg, content: `⚠️ ${streamError}` } : msg
-          )
-        );
       }
     } catch (err: any) {
       console.error('Code action trigger failed', err);
@@ -425,7 +358,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBackToDashboard, project
       if (index > lastIndex) {
         parts.push(<p key={lastIndex} className="whitespace-pre-wrap text-sm leading-relaxed mb-4">{text.slice(lastIndex, index)}</p>);
       }
-
+      
       const lang = match[1] || 'Code';
       const code = match[2];
 
@@ -494,17 +427,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBackToDashboard, project
             <option value="vs-dark">Dark Theme</option>
             <option value="light">Light Theme</option>
           </select>
-          <Button
-            size="sm"
-            variant="primary"
-            className="h-8 text-xs bg-emerald-600 hover:bg-emerald-500 border-none mr-2"
-            onClick={runCode}
-            disabled={!activeFile}
-            isLoading={runLoading}
-          >
-            <Play className="mr-1.5 h-3.5 w-3.5 fill-current" /> Run Code
-          </Button>
-
+          
           <Button size="sm" variant="primary" className="h-8 text-xs" onClick={saveFileChanges} disabled={!activeFile}>
             Save File
           </Button>
@@ -548,7 +471,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBackToDashboard, project
                 <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
                   File Explorer
                 </span>
-
+                
                 <div className="flex items-center space-x-1.5">
                   <button onClick={triggerFileUpload} title="Upload Files" className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground">
                     <Upload className="h-4 w-4" />
@@ -614,20 +537,9 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBackToDashboard, project
                 <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
                   AI Assistant
                 </span>
-                <div className="flex items-center gap-2">
-                  {chatMessages.length > 0 && (
-                    <button
-                      onClick={handleClearChat}
-                      title="Clear chat"
-                      className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  )}
-                  <span className="flex items-center text-xs text-emerald-500 font-semibold">
-                    <Activity className="mr-1.5 h-3.5 w-3.5 animate-pulse" /> Live Stream
-                  </span>
-                </div>
+                <span className="flex items-center text-xs text-emerald-500 font-semibold">
+                  <Activity className="mr-1.5 h-3.5 w-3.5 animate-pulse" /> Live Stream
+                </span>
               </div>
 
               {/* Chat conversations window */}
@@ -776,49 +688,12 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBackToDashboard, project
                     fontFamily: 'JetBrains Mono',
                     minimap: { enabled: true },
                     automaticLayout: true,
+                    formatOnSave: true,
                     lineNumbers: 'on',
                     wordWrap: 'on',
                   }}
                 />
               </div>
-
-              {/* Console Output Panel */}
-              {showConsole && (
-                <div className="h-48 border-t border-border bg-[#111] text-[#eee] flex flex-col font-mono overflow-hidden">
-                  <div className="flex justify-between items-center bg-[#1a1a1a] px-4 py-1.5 border-b border-border text-xs text-muted-foreground select-none">
-                    <span className="font-bold flex items-center gap-1.5">
-                      <Terminal className="h-3.5 w-3.5 text-emerald-500" /> Console Output
-                    </span>
-                    <div className="flex gap-2">
-                      <button onClick={() => setConsoleOutput(null)} className="hover:text-foreground">
-                        Clear
-                      </button>
-                      <button onClick={() => setShowConsole(false)} className="hover:text-foreground">
-                        Close
-                      </button>
-                    </div>
-                  </div>
-                  <div className="flex-1 p-4 overflow-y-auto text-xs space-y-1">
-                    {consoleOutput ? (
-                      <>
-                        {consoleOutput.stdout && (
-                          <pre className="text-emerald-400 whitespace-pre-wrap">{consoleOutput.stdout}</pre>
-                        )}
-                        {consoleOutput.stderr && (
-                          <pre className="text-red-400 whitespace-pre-wrap">{consoleOutput.stderr}</pre>
-                        )}
-                        <div className="text-[10px] text-muted-foreground border-t border-muted/20 pt-1 mt-2">
-                          Process exited with code {consoleOutput.exitCode}
-                        </div>
-                      </>
-                    ) : (
-                      <span className="text-muted-foreground">
-                        Click "Run Code" to compile and execute program...
-                      </span>
-                    )}
-                  </div>
-                </div>
-              )}
             </>
           ) : (
             <div className="flex flex-1 flex-col items-center justify-center space-y-4">

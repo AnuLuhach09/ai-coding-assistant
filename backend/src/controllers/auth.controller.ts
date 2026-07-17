@@ -1,7 +1,22 @@
-import { Request, Response, NextFunction } from 'express';
+import { Request, Response, NextFunction, CookieOptions } from 'express';
 import { authService } from '../services/auth.service';
 import { sendSuccess, sendError } from '../utils/response';
 import { logger } from '../utils/logger';
+
+// When the frontend and backend are deployed as separate services (e.g. two
+// Railway apps on different subdomains), the refresh-token cookie is
+// cross-site from the browser's point of view. That requires
+// SameSite=None + Secure=true, whereas SameSite=Strict silently drops the
+// cookie and breaks login/refresh. Set CROSS_SITE_COOKIES=true when
+// frontend and backend are on different domains; leave unset for same-site
+// deployments (e.g. backend serving the frontend build itself).
+const crossSite = process.env.CROSS_SITE_COOKIES === 'true';
+
+const refreshCookieOptions = (): CookieOptions => ({
+  httpOnly: true,
+  secure: crossSite || process.env.NODE_ENV === 'production',
+  sameSite: crossSite ? 'none' : 'strict',
+});
 
 export class AuthController {
   async register(req: Request, res: Response, next: NextFunction) {
@@ -11,9 +26,7 @@ export class AuthController {
 
       // Set cookie for refresh token
       res.cookie('refreshToken', refreshToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
+        ...refreshCookieOptions(),
         maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
       });
 
@@ -39,9 +52,7 @@ export class AuthController {
       const { user, accessToken, refreshToken } = await authService.login(email, password);
 
       res.cookie('refreshToken', refreshToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
+        ...refreshCookieOptions(),
         maxAge: 7 * 24 * 60 * 60 * 1000,
       });
 
@@ -63,11 +74,7 @@ export class AuthController {
 
   async logout(req: Request, res: Response, next: NextFunction) {
     try {
-      res.clearCookie('refreshToken', {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
-      });
+      res.clearCookie('refreshToken', refreshCookieOptions());
       return sendSuccess(res, { message: 'Logged out successfully' });
     } catch (error: any) {
       return next(error);

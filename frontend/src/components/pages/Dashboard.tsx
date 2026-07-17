@@ -18,7 +18,6 @@ import {
   Settings as SettingsIcon,
   LogOut,
   User as UserIcon,
-  Trash2,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -122,17 +121,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
       console.error('Failed to clone repository', err);
     } finally {
       setCloneLoading(false);
-    }
-  };
-
-  const handleDeleteProject = async (e: React.MouseEvent, projectId: string, projectName: string) => {
-    e.stopPropagation();
-    if (!window.confirm(`Delete "${projectName}"? This will permanently remove all files, chats, and analyses.`)) return;
-    try {
-      await api.delete(`/projects/${projectId}`);
-      setProjects(projects.filter((p) => p.id !== projectId));
-    } catch (err) {
-      console.error('Failed to delete project', err);
     }
   };
 
@@ -310,18 +298,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     {project.description || 'No description provided.'}
                   </p>
 
-                  <div className="mt-6 flex items-center justify-between border-t border-border pt-4">
-                    <div className="flex items-center text-xs text-muted-foreground space-x-1">
-                      <Calendar className="h-3.5 w-3.5" />
-                      <span>Updated {new Date(project.updatedAt).toLocaleDateString()}</span>
-                    </div>
-                    <button
-                      onClick={(e) => handleDeleteProject(e, project.id, project.name)}
-                      className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all opacity-0 group-hover:opacity-100"
-                      title="Delete project"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
+                  <div className="mt-6 flex items-center text-xs text-muted-foreground space-x-1 border-t border-border pt-4">
+                    <Calendar className="h-3.5 w-3.5" />
+                    <span>Updated {new Date(project.updatedAt).toLocaleDateString()}</span>
                   </div>
                 </motion.div>
               ))}

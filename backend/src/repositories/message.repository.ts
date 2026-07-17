@@ -26,11 +26,5 @@ export class MessageRepository {
       where: { id },
     });
   }
-
-  async deleteAllByChatId(chatId: string): Promise<{ count: number }> {
-    return prisma.message.deleteMany({
-      where: { chatId },
-    });
-  }
 }
 export const messageRepository = new MessageRepository();

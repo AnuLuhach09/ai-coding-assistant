@@ -1,4 +1,4 @@
-import { chromaClient } from '../config/chroma';
+import { chromaClient, isChromaEnabled } from '../config/chroma';
 import OpenAI from 'openai';
 import { logger } from '../utils/logger';
 
@@ -57,6 +57,11 @@ export class RAGService {
   }
 
   async indexFile(projectId: string, fileId: string, filePath: string, fileContent: string): Promise<void> {
+    if (!isChromaEnabled || !chromaClient) {
+      logger.debug('Chroma disabled — skipping RAG indexing.');
+      return;
+    }
+
     try {
       const collectionName = `project_${projectId.replace(/-/g, '_')}`;
       let collection;
@@ -106,6 +111,10 @@ export class RAGService {
   }
 
   async querySimilarity(projectId: string, queryText: string, limit: number = 5): Promise<{ content: string; filePath: string }[]> {
+    if (!isChromaEnabled || !chromaClient) {
+      return [];
+    }
+
     try {
       const collectionName = `project_${projectId.replace(/-/g, '_')}`;
       let collection;
@@ -148,6 +157,10 @@ export class RAGService {
   }
 
   async deleteProjectIndex(projectId: string): Promise<void> {
+    if (!isChromaEnabled || !chromaClient) {
+      return;
+    }
+
     try {
       const collectionName = `project_${projectId.replace(/-/g, '_')}`;
       await chromaClient.deleteCollection({ name: collectionName });

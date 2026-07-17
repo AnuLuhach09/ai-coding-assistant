@@ -19,6 +19,5 @@ router.get('/chats/:chatId/export', chatController.exportChat);
 // Specific message endpoints
 router.put('/messages/:messageId', chatController.editMessage);
 router.delete('/messages/:messageId', chatController.deleteMessage);
-router.delete('/chats/:chatId/messages', chatController.clearChat);
 
 export default router;

@@ -1,8 +1,14 @@
 import axios from 'axios';
 import { useAuthStore } from '../store/authStore';
 
+// VITE_API_URL should point at the backend's base URL, e.g.
+// "https://my-backend.up.railway.app/api". If unset, requests are made to
+// a relative "/api" path, which only works when the frontend is served
+// from the same origin as the backend.
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
+
 export const api = axios.create({
-  baseURL: '/api',
+  baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -53,7 +59,7 @@ api.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        const response = await axios.post('/api/auth/refresh-token', {}, { withCredentials: true });
+        const response = await axios.post(`${API_BASE_URL}/auth/refresh-token`, {}, { withCredentials: true });
         const { accessToken } = response.data.data;
         
         useAuthStore.getState().setToken(accessToken);

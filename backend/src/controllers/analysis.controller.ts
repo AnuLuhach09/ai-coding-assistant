@@ -4,9 +4,6 @@ import { sendSuccess, sendError } from '../utils/response';
 import { aiService } from '../services/ai.service';
 import { settingRepository } from '../repositories/setting.repository';
 import { logger } from '../utils/logger';
-import fs from 'fs';
-import path from 'path';
-import { exec } from 'child_process';
 
 export class AnalysisController {
   async analyzeCode(req: AuthRequest, res: Response, next: NextFunction) {
@@ -111,83 +108,6 @@ ${code}
 
         return sendSuccess(res, { result });
       }
-    } catch (error) {
-      return next(error);
-    }
-  }
-
-  async runCode(req: AuthRequest, res: Response, next: NextFunction) {
-    try {
-      const { code, language } = req.body;
-
-      if (!code) {
-        return sendError(res, 'BAD_REQUEST', 'Code is required', 400);
-      }
-
-      const langMap: { [key: string]: { ext: string; cmd: (file: string, bin: string) => string } } = {
-        javascript: { ext: '.js', cmd: (f) => `node "${f}"` },
-        js: { ext: '.js', cmd: (f) => `node "${f}"` },
-        typescript: { ext: '.ts', cmd: (f) => `npx ts-node "${f}"` },
-        ts: { ext: '.ts', cmd: (f) => `npx ts-node "${f}"` },
-        python: { ext: '.py', cmd: (f) => `python3 "${f}"` },
-        py: { ext: '.py', cmd: (f) => `python3 "${f}"` },
-        go: { ext: '.go', cmd: (f) => `go run "${f}"` },
-        bash: { ext: '.sh', cmd: (f) => `bash "${f}"` },
-        sh: { ext: '.sh', cmd: (f) => `bash "${f}"` },
-        c: { ext: '.c', cmd: (f, b) => `gcc "${f}" -o "${b}" && "${b}"` },
-        cpp: { ext: '.cpp', cmd: (f, b) => `g++ "${f}" -o "${b}" && "${b}"` },
-      };
-
-      const langKey = (language || 'javascript').toLowerCase();
-      const config = langMap[langKey];
-
-      if (!config) {
-        return sendError(
-          res,
-          'BAD_REQUEST',
-          `Language '${language}' is not supported for execution. Supported: Javascript, TypeScript, Python, Go, C, C++, Bash.`,
-          400
-        );
-      }
-
-      const tempDir = path.join(__dirname, '../../temp');
-      if (!fs.existsSync(tempDir)) {
-        fs.mkdirSync(tempDir, { recursive: true });
-      }
-
-      const runId = `run_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-      const tempFile = path.join(tempDir, `${runId}${config.ext}`);
-      const tempBin = path.join(tempDir, `${runId}.bin`);
-
-      // Write code to temp file
-      fs.writeFileSync(tempFile, code, 'utf8');
-
-      const cmd = config.cmd(tempFile, tempBin);
-
-      exec(cmd, { timeout: 5000, maxBuffer: 1024 * 1024 }, (error, stdout, stderr) => {
-        // Clean up temp files
-        try {
-          if (fs.existsSync(tempFile)) fs.unlinkSync(tempFile);
-          if (fs.existsSync(tempBin)) fs.unlinkSync(tempBin);
-        } catch (cleanupErr) {
-          logger.warn(`Failed to clean up run files: ${cleanupErr}`);
-        }
-
-        if (error) {
-          const isTimeout = error.killed || (error as any).signal === 'SIGTERM';
-          return sendSuccess(res, {
-            stdout,
-            stderr: isTimeout ? 'Error: Execution timed out (5s limit).' : stderr || error.message,
-            exitCode: error.code || 1,
-          });
-        }
-
-        return sendSuccess(res, {
-          stdout,
-          stderr,
-          exitCode: 0,
-        });
-      });
     } catch (error) {
       return next(error);
     }

@@ -97,8 +97,8 @@ export class ChatController {
         };
       }
 
-      // Query ChromaDB vector database (RAG Context) — limit to 2 chunks to save tokens
-      const ragChunks = await ragService.querySimilarity(chat.projectId, content, 2);
+      // Query ChromaDB vector database (RAG Context)
+      const ragChunks = await ragService.querySimilarity(chat.projectId, content, 4);
       let contextPrompt = '';
       if (ragChunks.length > 0) {
         contextPrompt = `\n\n[CONTEXT FROM USER FILES / REPOSITORY]:\n` +
@@ -106,9 +106,8 @@ export class ChatController {
           `\n\nRefer to the context above to assist in answering the query accurately if applicable.`;
       }
 
-      // Prepare conversation history — keep only last 6 messages to save tokens
-      const recentMessages = chat.messages.slice(-6);
-      const chatHistory = recentMessages.map((msg) => ({
+      // Prepare conversation history for LLM
+      const chatHistory = chat.messages.map((msg) => ({
         role: (msg.sender === 'USER' ? 'user' : 'assistant') as 'user' | 'assistant',
         content: msg.content,
       }));
@@ -277,21 +276,6 @@ export class ChatController {
       res.setHeader('Content-Type', 'text/markdown');
       res.setHeader('Content-Disposition', `attachment; filename="chat_export_${chatId}.md"`);
       return res.send(formatted);
-    } catch (error) {
-      return next(error);
-    }
-  }
-  async clearChat(req: AuthRequest, res: Response, next: NextFunction) {
-    try {
-      const { chatId } = req.params;
-      const chat = await chatRepository.findById(chatId);
-
-      if (!chat || chat.userId !== req.user!.id) {
-        return sendError(res, 'FORBIDDEN', 'Access denied', 403);
-      }
-
-      await messageRepository.deleteAllByChatId(chatId);
-      return sendSuccess(res, { message: 'Chat cleared successfully' });
     } catch (error) {
       return next(error);
     }

@@ -9,8 +9,8 @@ interface SettingsProps {
 }
 
 export const Settings: React.FC<SettingsProps> = ({ onBackToDashboard }) => {
-  const [provider, setProvider] = useState('groq');
-  const [model, setModel] = useState('llama-3.1-8b-instant');
+  const [provider, setProvider] = useState('openai');
+  const [model, setModel] = useState('gpt-4o');
   const [temp, setTemp] = useState(0.7);
   const [tokens, setTokens] = useState(2048);
   const [stream, setStream] = useState(true);
@@ -56,26 +56,18 @@ export const Settings: React.FC<SettingsProps> = ({ onBackToDashboard }) => {
   // Model choices list depending on selected Provider
   const getModelsForProvider = (p: string) => {
     switch (p) {
+      case 'openai':
+        return ['gpt-4o', 'gpt-4-turbo', 'gpt-3.5-turbo'];
+      case 'anthropic':
+        return ['claude-3-opus-20240229', 'claude-3-sonnet-20240229', 'claude-3-haiku-20240307'];
       case 'gemini':
-        return ['gemini-2.0-flash', 'gemini-2.5-flash', 'gemini-2.5-pro'];
+        return ['gemini-1.5-pro', 'gemini-1.5-flash'];
       case 'groq':
-        return [
-          'llama-3.3-70b-versatile',
-          'llama-3.1-8b-instant',
-          'llama-3.1-70b-versatile',
-          'mixtral-8x7b-32768',
-          'gemma2-9b-it',
-        ];
+        return ['llama3-70b-8192', 'llama3-8b-8192', 'mixtral-8x7b-32768'];
       case 'openrouter':
-        return [
-          'meta-llama/llama-3.1-8b-instruct:free',
-          'meta-llama/llama-3.2-3b-instruct:free',
-          'microsoft/phi-3-mini-128k-instruct:free',
-          'mistralai/mistral-7b-instruct:free',
-          'google/gemma-2-9b-it:free',
-        ];
+        return ['meta-llama/llama-3-70b-instruct', 'mistralai/mixtral-8x7b-instruct'];
       case 'ollama':
-        return ['llama3.2', 'llama3.1', 'mistral', 'codellama', 'qwen2.5-coder'];
+        return ['llama3', 'mistral', 'codellama'];
       default:
         return [];
     }
@@ -124,10 +116,12 @@ export const Settings: React.FC<SettingsProps> = ({ onBackToDashboard }) => {
               }}
               className="w-full h-10 rounded-lg border border-input bg-card px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary text-foreground"
             >
+              <option value="openai">OpenAI</option>
+              <option value="anthropic">Anthropic Claude</option>
               <option value="gemini">Google Gemini</option>
-              <option value="groq">Groq (Free)</option>
-              <option value="openrouter">OpenRouter (Free models)</option>
-              <option value="ollama">Ollama (Local, Free)</option>
+              <option value="groq">Groq</option>
+              <option value="openrouter">OpenRouter</option>
+              <option value="ollama">Ollama (Local)</option>
             </select>
           </div>
 

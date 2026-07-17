@@ -1,63 +1,42 @@
-import { GoogleGenAI } from '@google/genai';
+import OpenAI from 'openai';
+import Anthropic from '@anthropic-ai/sdk';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import axios from 'axios';
 import { logger } from '../utils/logger';
 
-function humanizeAIError(raw: string): string {
-  try {
-    const outer = JSON.parse(raw);
-    const innerStr = outer?.error?.message ?? raw;
-    try {
-      const inner = JSON.parse(innerStr);
-      const msg: string = inner?.error?.message ?? innerStr;
-      if (msg.includes('RESOURCE_EXHAUSTED') || msg.includes('quota')) {
-        return 'API quota exceeded. Please generate a new Gemini API key at https://aistudio.google.com/apikey and update GEMINI_API_KEY in backend/.env';
-      }
-      if (msg.includes('UNAUTHENTICATED') || msg.includes('invalid authentication') || msg.includes('API_KEY_INVALID')) {
-        return 'Invalid or expired API key. Please generate a new key at https://aistudio.google.com/apikey and update GEMINI_API_KEY in backend/.env';
-      }
-      return msg.split('\n')[0];
-    } catch {
-      return innerStr.split('\n')[0];
-    }
-  } catch {
-    if (raw.includes('quota') || raw.includes('RESOURCE_EXHAUSTED')) {
-      return 'API quota exceeded. Please generate a new Gemini API key at https://aistudio.google.com/apikey';
-    }
-    if (raw.includes('UNAUTHENTICATED') || raw.includes('invalid authentication')) {
-      return 'Invalid or expired API key. Please update GEMINI_API_KEY in backend/.env';
-    }
-    if (raw === 'AggregateError' || raw.includes('ECONNREFUSED') || raw.includes('connect ECONNREFUSED')) {
-      return 'Could not connect to the AI provider. If using Ollama, make sure it is installed and running. If using Gemini, check your API key.';
-    }
-    return raw.split('\n')[0];
-  }
-}
-
 export class AIService {
-  private getOpenAICompatibleClient(provider: string) {
+  private getOpenAIClient(provider: string) {
     const key = this.getApiKey(provider);
     if (!key) {
       throw new Error(`API key for provider ${provider} is not configured.`);
     }
-    if (provider === 'groq') {
-      const { default: OpenAI } = require('openai');
-      return new OpenAI({ apiKey: key, baseURL: 'https://api.groq.com/openai/v1' });
+
+    if (provider === 'openai') {
+      return new OpenAI({ apiKey: key });
+    } else if (provider === 'groq') {
+      return new OpenAI({
+        apiKey: key,
+        baseURL: 'https://api.groq.com/openai/v1',
+      });
     } else if (provider === 'openrouter') {
-      const { default: OpenAI } = require('openai');
       return new OpenAI({
         apiKey: key,
         baseURL: 'https://openrouter.ai/api/v1',
         defaultHeaders: {
           'HTTP-Referer': 'http://localhost:3000',
-          'X-Title': 'CodeCoach AI',
+          'X-Title': 'Enterprise AI Coding Assistant',
         },
       });
     }
-    throw new Error(`Unsupported provider: ${provider}`);
+    throw new Error(`Unsupported OpenAI-compatible provider: ${provider}`);
   }
 
   private getApiKey(provider: string): string | undefined {
     switch (provider) {
+      case 'openai':
+        return process.env.OPENAI_API_KEY;
+      case 'anthropic':
+        return process.env.ANTHROPIC_API_KEY;
       case 'gemini':
         return process.env.GEMINI_API_KEY;
       case 'groq':
@@ -77,8 +56,8 @@ export class AIService {
     maxTokens: number = 2048
   ): Promise<string> {
     try {
-      if (provider === 'groq' || provider === 'openrouter') {
-        const client = this.getOpenAICompatibleClient(provider);
+      if (provider === 'openai' || provider === 'groq' || provider === 'openrouter') {
+        const client = this.getOpenAIClient(provider);
         const response = await client.chat.completions.create({
           model,
           messages,
@@ -88,13 +67,36 @@ export class AIService {
         return response.choices[0]?.message?.content || '';
       }
 
+      if (provider === 'anthropic') {
+        const key = this.getApiKey('anthropic');
+        if (!key) throw new Error('Anthropic API key is not configured.');
+        const anthropic = new Anthropic({ apiKey: key });
+
+        const systemMessage = messages.find((m) => m.role === 'system')?.content;
+        const chatMessages = messages.filter((m) => m.role !== 'system') as any[];
+
+        const response = await anthropic.messages.create({
+          model,
+          system: systemMessage,
+          messages: chatMessages,
+          max_tokens: maxTokens,
+          temperature,
+        });
+        const block = response.content[0];
+        return block.type === 'text' ? block.text : '';
+      }
+
       if (provider === 'gemini') {
         const key = this.getApiKey('gemini');
         if (!key) throw new Error('Gemini API key is not configured.');
-
-        const genai = new GoogleGenAI({ apiKey: key });
+        const genAI = new GoogleGenerativeAI(key);
         const systemMessage = messages.find((m) => m.role === 'system')?.content;
+        const geminiModel = genAI.getGenerativeModel({
+          model,
+          systemInstruction: systemMessage,
+        } as any);
 
+        // Convert messages to Gemini format
         const contents = messages
           .filter((m) => m.role !== 'system')
           .map((m) => ({
@@ -102,21 +104,14 @@ export class AIService {
             parts: [{ text: m.content }],
           }));
 
-        try {
-          const response = await genai.models.generateContent({
-            model,
-            contents,
-            config: {
-              temperature,
-              maxOutputTokens: maxTokens,
-              systemInstruction: systemMessage,
-            },
-          });
-
-          return response.text || '';
-        } catch (geminiErr: any) {
-          throw new Error(humanizeAIError(geminiErr.message));
-        }
+        const response = await geminiModel.generateContent({
+          contents,
+          generationConfig: {
+            temperature,
+            maxOutputTokens: maxTokens,
+          },
+        });
+        return response.response.text();
       }
 
       if (provider === 'ollama') {
@@ -149,8 +144,8 @@ export class AIService {
     onChunk: (text: string) => void
   ): Promise<void> {
     try {
-      if (provider === 'groq' || provider === 'openrouter') {
-        const client = this.getOpenAICompatibleClient(provider);
+      if (provider === 'openai' || provider === 'groq' || provider === 'openrouter') {
+        const client = this.getOpenAIClient(provider);
         const stream = await client.chat.completions.create({
           model,
           messages,
@@ -158,9 +153,37 @@ export class AIService {
           max_tokens: maxTokens,
           stream: true,
         });
+
         for await (const chunk of stream) {
           const content = chunk.choices[0]?.delta?.content || '';
-          if (content) onChunk(content);
+          if (content) {
+            onChunk(content);
+          }
+        }
+        return;
+      }
+
+      if (provider === 'anthropic') {
+        const key = this.getApiKey('anthropic');
+        if (!key) throw new Error('Anthropic API key is not configured.');
+        const anthropic = new Anthropic({ apiKey: key });
+
+        const systemMessage = messages.find((m) => m.role === 'system')?.content;
+        const chatMessages = messages.filter((m) => m.role !== 'system') as any[];
+
+        const stream = await anthropic.messages.create({
+          model,
+          system: systemMessage,
+          messages: chatMessages,
+          max_tokens: maxTokens,
+          temperature,
+          stream: true,
+        });
+
+        for await (const chunk of stream) {
+          if (chunk.type === 'content_block_delta' && chunk.delta.type === 'text_delta') {
+            onChunk(chunk.delta.text);
+          }
         }
         return;
       }
@@ -168,9 +191,12 @@ export class AIService {
       if (provider === 'gemini') {
         const key = this.getApiKey('gemini');
         if (!key) throw new Error('Gemini API key is not configured.');
-
-        const genai = new GoogleGenAI({ apiKey: key });
+        const genAI = new GoogleGenerativeAI(key);
         const systemMessage = messages.find((m) => m.role === 'system')?.content;
+        const geminiModel = genAI.getGenerativeModel({
+          model,
+          systemInstruction: systemMessage,
+        } as any);
 
         const contents = messages
           .filter((m) => m.role !== 'system')
@@ -179,49 +205,38 @@ export class AIService {
             parts: [{ text: m.content }],
           }));
 
-        try {
-          const stream = await genai.models.generateContentStream({
-            model,
-            contents,
-            config: {
-              temperature,
-              maxOutputTokens: maxTokens,
-              systemInstruction: systemMessage,
-            },
-          });
+        const result = await geminiModel.generateContentStream({
+          contents,
+          generationConfig: {
+            temperature,
+            maxOutputTokens: maxTokens,
+          },
+        });
 
-          for await (const chunk of stream) {
-            const text = chunk.text;
-            if (text) {
-              onChunk(text);
-            }
+        for await (const chunk of result.stream) {
+          const text = chunk.text();
+          if (text) {
+            onChunk(text);
           }
-        } catch (geminiErr: any) {
-          throw new Error(humanizeAIError(geminiErr.message));
         }
         return;
       }
 
       if (provider === 'ollama') {
         const ollamaUrl = process.env.OLLAMA_API_URL || 'http://localhost:11434';
-        let response;
-        try {
-          response = await axios.post(
-            `${ollamaUrl}/api/chat`,
-            {
-              model,
-              messages,
-              options: {
-                temperature,
-                num_predict: maxTokens,
-              },
-              stream: true,
+        const response = await axios.post(
+          `${ollamaUrl}/api/chat`,
+          {
+            model,
+            messages,
+            options: {
+              temperature,
+              num_predict: maxTokens,
             },
-            { responseType: 'stream' }
-          );
-        } catch (ollamaErr: any) {
-          throw new Error('Ollama is not running. Please install and start Ollama at https://ollama.com, then run: ollama pull llama3');
-        }
+            stream: true,
+          },
+          { responseType: 'stream' }
+        );
 
         return new Promise<void>((resolve, reject) => {
           response.data.on('data', (chunk: Buffer) => {
@@ -239,7 +254,7 @@ export class AIService {
           });
 
           response.data.on('end', () => resolve());
-          response.data.on('error', (err: any) => reject(new Error('Ollama is not running. Please install and start Ollama at https://ollama.com')));
+          response.data.on('error', (err: any) => reject(err));
         });
       }
 

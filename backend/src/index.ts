@@ -28,9 +28,25 @@ const port = process.env.PORT || 5000;
 
 // Security and utility middlewares
 app.use(helmet());
+
+// CORS_ORIGIN accepts a comma-separated list of allowed origins, e.g.
+// "https://my-frontend.up.railway.app,http://localhost:3000". Falls back to
+// localhost:3000 for local development if not set.
+const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:3000')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
 app.use(
   cors({
-    origin: 'http://localhost:3000',
+    origin: (origin, callback) => {
+      // Allow requests with no origin (curl, server-to-server, health checks)
+      if (!origin || allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      logger.warn(`Blocked by CORS: ${origin}`);
+      return callback(new Error('Not allowed by CORS'));
+    },
     credentials: true,
   })
 );

@@ -7,6 +7,5 @@ const router = Router();
 router.use(authMiddleware);
 
 router.post('/code', analysisController.analyzeCode);
-router.post('/run', analysisController.runCode);
 
 export default router;
