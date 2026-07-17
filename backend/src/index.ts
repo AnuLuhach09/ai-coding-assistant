@@ -84,19 +84,22 @@ app.use('/api/analysis', analysisRoutes);
 app.use(errorHandler);
 
 // Start Server
-const startServer = async () => {
-  try {
-    // Connect to external storage and caching systems
-    await connectRedis();
-    await initChroma();
+const startServer = () => {
+  // Start accepting HTTP traffic (and /health checks) immediately.
+  // Redis and Chroma are optional dependencies — connect them in the
+  // background so a slow/unreachable instance never delays or blocks
+  // the health check from coming online.
+  app.listen(port, () => {
+    logger.info(`Server is running in ${process.env.NODE_ENV || 'development'} mode on port ${port}`);
+  });
 
-    app.listen(port, () => {
-      logger.info(`Server is running in ${process.env.NODE_ENV || 'development'} mode on port ${port}`);
-    });
-  } catch (error) {
-    logger.error(`Failed to start server: ${error}`);
-    process.exit(1);
-  }
+  connectRedis().catch((error) => {
+    logger.error(`Redis connection failed in background: ${error}`);
+  });
+
+  initChroma().catch((error) => {
+    logger.error(`Chroma connection failed in background: ${error}`);
+  });
 };
 
 startServer();
