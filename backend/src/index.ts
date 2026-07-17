@@ -1,3 +1,4 @@
+console.log('>>> index.ts loaded, starting boot sequence');
 import dotenv from 'dotenv';
 // Load environment variables first
 dotenv.config();
