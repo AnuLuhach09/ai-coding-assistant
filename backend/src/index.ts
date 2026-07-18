@@ -25,6 +25,18 @@ import settingsRoutes from './routes/settings.routes';
 import analysisRoutes from './routes/analysis.routes';
 
 const app = express();
+app.options('*', (req, res) => {
+  console.log("========== OPTIONS ==========");
+  console.log(req.originalUrl);
+  console.log(req.headers.origin);
+
+  res.header("Access-Control-Allow-Origin", process.env.CORS_ORIGIN!);
+  res.header("Access-Control-Allow-Credentials", "true");
+  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  res.header("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS");
+
+  return res.sendStatus(204);
+});
 const port = process.env.PORT || 5000;
 
 // Security and utility middlewares
@@ -58,8 +70,6 @@ app.use(cors({
     methods: ["GET","POST","PUT","DELETE","OPTIONS"],
     allowedHeaders: ["Content-Type","Authorization"]
 }));
-
-app.options("*", cors());
 
 app.use(compression());
 app.use(express.json({ limit: '50mb' }));
