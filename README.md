@@ -6,6 +6,12 @@ The platform combines a modern React frontend with a scalable Node.js backend to
 
 ---
 
+### 🌐 Live Demo
+
+[🚀 Visit CodeCoach AI](https://codecoach-ai-psi.vercel.app/)
+
+---
+
 ## 📌 Features
 
 ### 👨‍💻 Coding Workspace
