@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import Editor from '@monaco-editor/react';
 import { useProjectStore, ProjectFile, Chat } from '../../store/projectStore';
-import { api } from '../../services/api';
+import { api, API_BASE_URL } from '../../services/api';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import {
@@ -199,7 +199,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBackToDashboard, project
 
     try {
       // Use standard fetch for SSE stream reader
-      const response = await fetch(`/api/chat/chats/${activeChat.id}/messages`, {
+      const response = await fetch(`${API_BASE_URL}/chat/chats/${activeChat.id}/messages`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -272,7 +272,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onBackToDashboard, project
     ]);
 
     try {
-      const response = await fetch('/api/analysis/code', {
+      const response = await fetch(`${API_BASE_URL}/analysis/code`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

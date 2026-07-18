@@ -5,7 +5,7 @@ import { useAuthStore } from '../store/authStore';
 // "https://my-backend.up.railway.app/api". If unset, requests are made to
 // a relative "/api" path, which only works when the frontend is served
 // from the same origin as the backend.
-const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
+export const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
 console.log("API_BASE_URL =", API_BASE_URL);
 
