@@ -65,15 +65,13 @@ export const Settings: React.FC<SettingsProps> = ({ onBackToDashboard }) => {
           'gemma2-9b-it'
         ];
       case 'gemini':
-        return ['gemini-2.0-flash', 'gemini-2.5-flash', 'gemini-2.5-pro'];
+        return ['gemini-2.0-flash (Coming Soon)'];
+      case 'openai':
+        return ['gpt-4o (Coming Soon)'];
+      case 'anthropic':
+        return ['claude-3-5-sonnet (Coming Soon)'];
       case 'openrouter':
-        return [
-          'meta-llama/llama-3.3-70b-instruct:free',
-          'meta-llama/llama-3.2-3b-instruct:free',
-          'nousresearch/hermes-3-llama-3.1-405b:free',
-          'qwen/qwen3-coder:free',
-          'google/gemma-2-9b-it:free'
-        ];
+        return ['llama-3-70b-instruct (Coming Soon)'];
       case 'ollama':
         return ['llama3.2', 'llama3.1', 'mistral', 'codellama', 'qwen2.5-coder'];
       default:
@@ -119,15 +117,23 @@ export const Settings: React.FC<SettingsProps> = ({ onBackToDashboard }) => {
             <select
               value={provider}
               onChange={(e) => {
-                setProvider(e.target.value);
-                setModel(getModelsForProvider(e.target.value)[0] || '');
+                const val = e.target.value;
+                if (val !== 'groq') {
+                  setStatusMsg('This AI provider is currently unavailable. Please use Groq.');
+                  setProvider('groq');
+                  setModel(getModelsForProvider('groq')[0] || '');
+                  return;
+                }
+                setProvider(val);
+                setModel(getModelsForProvider(val)[0] || '');
               }}
               className="w-full h-10 rounded-lg border border-input bg-card px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary text-foreground"
             >
-              <option value="groq">Groq (Free)</option>
-              <option value="gemini">Google Gemini</option>
-              <option value="openrouter">OpenRouter (Free Models)</option>
-              <option value="ollama">Ollama (Local / Free)</option>
+              <option value="groq">✅ Groq</option>
+              <option value="gemini">🚧 Gemini (Coming Soon)</option>
+              <option value="openai">🚧 OpenAI (Coming Soon)</option>
+              <option value="anthropic">🚧 Anthropic (Coming Soon)</option>
+              <option value="openrouter">🚧 OpenRouter (Coming Soon)</option>
             </select>
           </div>
 

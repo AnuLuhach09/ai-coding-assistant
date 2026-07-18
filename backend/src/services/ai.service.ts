@@ -1,5 +1,4 @@
 import OpenAI from 'openai';
-import { GoogleGenAI } from '@google/genai';
 import axios from 'axios';
 import { logger } from '../utils/logger';
 
@@ -28,15 +27,6 @@ export class AIService {
         apiKey: key,
         baseURL: 'https://api.groq.com/openai/v1',
       });
-    } else if (provider === 'openrouter') {
-      return new OpenAI({
-        apiKey: key,
-        baseURL: 'https://openrouter.ai/api/v1',
-        defaultHeaders: {
-          'HTTP-Referer': 'http://localhost:3000',
-          'X-Title': 'CodeCoach AI',
-        },
-      });
     }
     throw new Error(`Unsupported provider: ${provider}`);
   }
@@ -45,10 +35,6 @@ export class AIService {
     switch (provider) {
       case 'groq':
         return process.env.GROQ_API_KEY;
-      case 'openrouter':
-        return process.env.OPENROUTER_API_KEY;
-      case 'gemini':
-        return process.env.GEMINI_API_KEY;
       default:
         return undefined;
     }
@@ -62,7 +48,7 @@ export class AIService {
     maxTokens: number = 2048
   ): Promise<string> {
     try {
-      if (provider === 'groq' || provider === 'openrouter') {
+      if (provider === 'groq') {
         try {
           const client = this.getOpenAIClient(provider);
           const response = await client.chat.completions.create({
@@ -74,37 +60,6 @@ export class AIService {
           return response.choices[0]?.message?.content || '';
         } catch (err: any) {
           throw new Error(humanizeAIError(err.message || err));
-        }
-      }
-
-      if (provider === 'gemini') {
-        const key = this.getApiKey('gemini');
-        if (!key) throw new Error('Gemini API key is not configured.');
-
-        const genai = new GoogleGenAI({ apiKey: key });
-        const systemMessage = messages.find((m) => m.role === 'system')?.content;
-
-        const contents = messages
-          .filter((m) => m.role !== 'system')
-          .map((m) => ({
-            role: m.role === 'assistant' ? 'model' : 'user',
-            parts: [{ text: m.content }],
-          }));
-
-        try {
-          const response = await genai.models.generateContent({
-            model,
-            contents,
-            config: {
-              temperature,
-              maxOutputTokens: maxTokens,
-              systemInstruction: systemMessage,
-            },
-          });
-
-          return response.text || '';
-        } catch (geminiErr: any) {
-          throw new Error(humanizeAIError(geminiErr.message || geminiErr));
         }
       }
 
@@ -142,7 +97,7 @@ export class AIService {
     onChunk: (text: string) => void
   ): Promise<void> {
     try {
-      if (provider === 'groq' || provider === 'openrouter') {
+      if (provider === 'groq') {
         try {
           const client = this.getOpenAIClient(provider);
           const stream = await client.chat.completions.create({
@@ -163,43 +118,6 @@ export class AIService {
         } catch (err: any) {
           throw new Error(humanizeAIError(err.message || err));
         }
-      }
-
-      if (provider === 'gemini') {
-        const key = this.getApiKey('gemini');
-        if (!key) throw new Error('Gemini API key is not configured.');
-
-        const genai = new GoogleGenAI({ apiKey: key });
-        const systemMessage = messages.find((m) => m.role === 'system')?.content;
-
-        const contents = messages
-          .filter((m) => m.role !== 'system')
-          .map((m) => ({
-            role: m.role === 'assistant' ? 'model' : 'user',
-            parts: [{ text: m.content }],
-          }));
-
-        try {
-          const stream = await genai.models.generateContentStream({
-            model,
-            contents,
-            config: {
-              temperature,
-              maxOutputTokens: maxTokens,
-              systemInstruction: systemMessage,
-            },
-          });
-
-          for await (const chunk of stream) {
-            const text = chunk.text;
-            if (text) {
-              onChunk(text);
-            }
-          }
-        } catch (geminiErr: any) {
-          throw new Error(humanizeAIError(geminiErr.message || geminiErr));
-        }
-        return;
       }
 
       if (provider === 'ollama') {

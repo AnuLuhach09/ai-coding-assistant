@@ -26,6 +26,10 @@ export class SettingsController {
       const userId = req.user!.id;
       const { aiProvider, aiModel, temperature, maxTokens, isStreaming, isNotificationsEnabled } = req.body;
 
+      if (aiProvider && aiProvider !== 'groq') {
+        return sendError(res, 'BAD_REQUEST', 'This AI provider is currently unavailable. Please use Groq.', 400);
+      }
+
       const updated = await settingRepository.update(userId, {
         aiProvider,
         aiModel,
