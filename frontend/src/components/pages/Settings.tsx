@@ -68,10 +68,10 @@ export const Settings: React.FC<SettingsProps> = ({ onBackToDashboard }) => {
         return ['gemini-2.0-flash', 'gemini-2.5-flash', 'gemini-2.5-pro'];
       case 'openrouter':
         return [
-          'meta-llama/llama-3.1-8b-instruct:free',
+          'meta-llama/llama-3.3-70b-instruct:free',
           'meta-llama/llama-3.2-3b-instruct:free',
-          'microsoft/phi-3-mini-128k-instruct:free',
-          'mistralai/mistral-7b-instruct:free',
+          'nousresearch/hermes-3-llama-3.1-405b:free',
+          'qwen/qwen3-coder:free',
           'google/gemma-2-9b-it:free'
         ];
       case 'ollama':
