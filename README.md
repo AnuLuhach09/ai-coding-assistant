@@ -1,4 +1,4 @@
-# 🚀 CodeCoach AI – AI-Powered Coding Interview Preparation Platform
+# 🚀 CodeCoach AI – AI-Powered Coding assisstant
 
 CodeCoach AI is a full-stack AI-powered coding interview preparation platform that helps users improve their programming skills through an interactive coding environment, AI-generated hints, code analysis, and interview-focused practice.
 
